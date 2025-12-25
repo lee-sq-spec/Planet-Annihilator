@@ -1,0 +1,267 @@
+:root {
+  --primary-bg: #0a0a0f;
+  --secondary-bg: #1a1a2e;
+  --accent-color: #ff6b35;
+  --text-color: #e0e0e0;
+  --warning-color: #ff3333;
+  --shield-color: #00ffff;
+  --success-color: #00ff88;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Courier New', monospace;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+  color: var(--text-color);
+  overflow: hidden;
+  height: 100vh;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-canvas {
+  display: block;
+  background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a0f 100%);
+  cursor: crosshair;
+}
+
+#hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+#hud > div {
+  background: rgba(26, 26, 46, 0.85);
+  border: 2px solid var(--accent-color);
+  border-radius: 12px;
+  padding: 15px;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  box-shadow: 0 8px 32px rgba(255, 107, 53, 0.2);
+}
+
+#hud h3 {
+  color: var(--accent-color);
+  margin-bottom: 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  max-width: 200px;
+}
+
+.weapon-btn {
+  background: linear-gradient(145deg, #2a2a3e, #1a1a2e);
+  border: 1px solid var(--accent-color);
+  color: var(--text-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.weapon-btn:hover {
+  background: linear-gradient(145deg, var(--accent-color), #ff8c5a);
+  color: #000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+}
+
+.weapon-btn.active {
+  background: var(--accent-color);
+  color: #000;
+  font-weight: bold;
+}
+
+#planet-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+#shield-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(0, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--shield-color);
+}
+
+#shield-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--shield-color), #00cccc);
+  width: 100%;
+  transition: width 0.3s ease;
+}
+
+#mode-select {
+  background: #2a2a3e;
+  border: 1px solid var(--accent-color);
+  color: var(--text-color);
+  padding: 8px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  width: 100%;
+}
+
+#planet-selector {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 100;
+}
+
+.planet-btn {
+  background: linear-gradient(145deg, #2a2a3e, #1a1a2e);
+  border: 2px solid var(--accent-color);
+  color: var(--text-color);
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.planet-btn:hover {
+  background: linear-gradient(145deg, var(--accent-color), #ff8c5a);
+  color: #000;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+.planet-btn.active {
+  background: var(--accent-color);
+  color: #000;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.6);
+}
+
+#warning-system {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  pointer-events: none;
+}
+
+.warning-message {
+  background: rgba(255, 51, 51, 0.9);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  animation: warningPulse 0.5s ease-in-out;
+  border: 2px solid #ff6666;
+  box-shadow: 0 0 20px rgba(255, 51, 51, 0.8);
+}
+
+@keyframes warningPulse {
+  0% { opacity: 0; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Particle Effects */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.explosion-particle {
+  background: radial-gradient(circle, #ff6b35 0%, #ff3333 100%);
+  animation: explode 1s ease-out forwards;
+}
+
+.debris-particle {
+  background: #8b4513;
+  animation: debris 2s ease-out forwards;
+}
+
+.ice-particle {
+  background: radial-gradient(circle, #87ceeb 0%, #4682b4 100%);
+  animation: freeze 1.5s ease-out forwards;
+}
+
+@keyframes explode {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0) translate(var(--dx), var(--dy)); }
+}
+
+@keyframes debris {
+  0% { opacity: 1; transform: rotate(0deg); }
+  100% { opacity: 0; transform: rotate(720deg) translate(var(--dx), var(--dy)); }
+}
+
+@keyframes freeze {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #hud {
+    top: 10px;
+    left: 10px;
+    gap: 15px;
+  }
+  
+  #hud > div {
+    padding: 10px;
+  }
+  
+  #weapon-grid {
+    grid-template-columns: 1fr;
+    max-width: 150px;
+  }
+  
+  .weapon-btn, .planet-btn {
+    padding: 10px 15px;
+    font-size: 11px;
+  }
+  
+  #planet-selector {
+    bottom: 10px;
+    gap: 8px;
+  }
+}
