@@ -1,453 +1,75 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planet Annihilator: Divine Edition</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
-        body { margin: 0; overflow: hidden; background: #000; color: #fff; font-family: 'Orbitron', sans-serif; cursor: none; }
-        canvas { display: block; }
-        
-        /* 准星 */
-        #crosshair {
-            position: fixed; width: 40px; height: 40px; border: 2px solid rgba(255,0,0,0.5);
-            border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 9999;
-            display: flex; align-items: center; justify-content: center; transition: 0.1s;
-        }
-        #crosshair::after { content: ''; width: 4px; height: 4px; background: red; border-radius: 50%; }
-
-        /* 侧边栏 */
-        .weapon-sidebar { width: 420px; position: fixed; right: -360px; top: 0; bottom: 0; z-index: 1000; transition: 0.5s cubic-bezier(0.19, 1, 0.22, 1); background: rgba(5,5,15,0.8); backdrop-filter: blur(15px); border-left: 1px solid rgba(255,255,255,0.1); }
-        .weapon-sidebar:hover { right: 0; }
-        .sidebar-tag { position: absolute; left: 0; top: 0; bottom: 0; width: 60px; display: flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, transparent, #ff4444, transparent); cursor: pointer; }
-        .tag-text { writing-mode: vertical-rl; font-weight: 900; letter-spacing: 5px; color: #fff; }
-
-        .weapon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 15px; height: calc(100% - 200px); overflow-y: auto; }
-        .weapon-item { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; transition: 0.2s; }
-        .weapon-item:hover { background: rgba(255,68,68,0.2); border-color: #ff4444; }
-        .weapon-item.active { border-color: #ff4444; background: rgba(255,68,68,0.3); box-shadow: 0 0 15px rgba(255,68,68,0.4); }
-
-        /* 行星环形HUD */
-        #hud-container { position: fixed; inset: 0; pointer-events: none; z-index: 500; }
-        .arc-data { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 800px; height: 800px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); }
-        .data-box { position: absolute; background: rgba(0,0,0,0.6); padding: 10px 20px; border-left: 4px solid #ff4444; }
-
-        /* 屏幕反馈 */
-        #screen-fx { position: fixed; inset: 0; pointer-events: none; z-index: 2000; transition: 0.3s; }
-        .hit-shake { animation: shake 0.2s infinite; }
-        @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(0,0); } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planet Annihilator - 行星毁灭者</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<div id="crosshair"></div>
-<div id="screen-fx"></div>
-
-<div id="hud-container">
-    <div class="arc-data">
-        <div class="data-box" style="top: 20%; left: -100px;">
-            <div class="text-[10px] text-gray-400">POPULATION</div>
-            <div id="val-pop" class="text-3xl font-black text-blue-400">8.00 B</div>
-        </div>
-        <div class="data-box" style="top: 20%; right: -100px; border-left: 0; border-right: 4px solid #ff4444; text-align: right;">
-            <div class="text-[10px] text-gray-400">INTEGRITY</div>
-            <div id="val-hp" class="text-3xl font-black text-red-500">100%</div>
-        </div>
-        <div id="planet-info" class="absolute bottom-[-100px] left-1/2 -translate-x-1/2 text-center">
-            <h1 id="p-name" class="text-7xl font-black italic tracking-tighter uppercase opacity-20">EARTH</h1>
-        </div>
-    </div>
-</div>
-
-<div class="weapon-sidebar">
-    <div class="sidebar-tag"><div class="tag-text">ARSENAL AR-X</div></div>
-    <div class="p-8 pb-4 ml-12">
-        <h2 class="text-2xl font-black italic">毁灭实验室</h2>
-        <div class="h-1 w-20 bg-red-600 mt-2"></div>
-    </div>
-    <div class="weapon-grid" id="weapon-grid"></div>
-    <div class="p-6 ml-12 bg-black/40 border-t border-white/10">
-        <div id="w-name" class="text-red-500 font-bold uppercase">---</div>
-        <div id="w-desc" class="text-[10px] text-gray-400 mt-1 leading-tight">等待授权...</div>
-    </div>
-</div>
-
-<script type="module">
-    // --- 核心配置 ---
-    const WEAPON_TYPES = { PROJECTILE: 0, BEAM: 1, FIELD: 2 };
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
     
-    const PLANETS = [
-        { id: 'earth', name: '地球', color: 0x2266ff, hp: 2000, pop: 8.0, counter: 'satellite_beam', shieldColor: 0x00f2ff },
-        { id: 'mars', name: '火星', color: 0xcc4422, hp: 1500, pop: 0.1, counter: 'dust_storm', shieldColor: 0xffaa00 },
-        { id: 'jupiter', name: '木星', color: 0xffaa66, hp: 8000, pop: 0, counter: 'gravity_mine', shieldColor: 0xff00ff },
-        { id: 'hell', name: '地狱星', color: 0xff2200, hp: 4000, pop: 0, counter: 'solar_flare', shieldColor: 0xff4400 }
-    ];
-
-    const WEAPONS = [
-        { id: 'missile', name: '追踪导弹', icon: '🚀', type: WEAPON_TYPES.PROJECTILE, pwr: 50, speed: 0.8, color: 0xff6600, desc: '自动修正轨道的物理弹头，造成地表坑洞。' },
-        { id: 'heavy_laser', name: '重粒子炮', icon: '⚡', type: WEAPON_TYPES.BEAM, pwr: 15, speed: 1.0, color: 0x00ffff, desc: '持续性高能束，产生地表烧灼纹路。' },
-        { id: 'meteor', name: '引力陨石', icon: '☄️', type: WEAPON_TYPES.PROJECTILE, pwr: 200, speed: 0.4, color: 0x888888, desc: '巨型动能打击，产生大量溅射碎片。' },
-        { id: 'blackhole', name: '微型奇点', icon: '🕳️', type: WEAPON_TYPES.FIELD, pwr: 10, speed: 0.1, color: 0xaa00ff, desc: '持续吸附并坍缩地表物质。' },
-        { id: 'freeze', name: '寒冬射线', icon: '❄️', type: WEAPON_TYPES.BEAM, pwr: 10, speed: 1.0, color: 0x88ffff, desc: '冻结目标区域，碎片呈现结晶状。' },
-        { id: 'emp', name: '电磁冲击', icon: '📡', type: WEAPON_TYPES.FIELD, pwr: 100, speed: 2.0, color: 0xffff00, desc: '瞬间摧毁护盾，击飞地表松散物质。' }
-    ];
-
-    // --- 游戏引擎状态 ---
-    let scene, camera, renderer, planet, atmosphere, shield;
-    let projectiles = [], fragments = [], counterObjects = [], beams = [];
-    let state = { currentPlanet: PLANETS[0], currentWeapon: WEAPONS[0], hp: 2000, maxHp: 2000, pop: 8.0, anger: 0 };
-
-    // --- 初始化 ---
-    function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
-        camera.position.set(0, 5, 30);
-
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-
-        const amb = new THREE.AmbientLight(0xffffff, 0.3);
-        scene.add(amb);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-        sun.position.set(100, 100, 50);
-        scene.add(sun);
-
-        loadPlanet(PLANETS[0]);
-        setupUI();
-        animate();
-
-        window.addEventListener('mousemove', e => {
-            const cross = document.getElementById('crosshair');
-            cross.style.left = e.clientX + 'px';
-            cross.style.top = e.clientY + 'px';
-        });
-
-        window.addEventListener('mousedown', onFire);
-        window.addEventListener('resize', onResize);
-    }
-
-    function loadPlanet(config) {
-        if(planet) scene.remove(planet);
-        if(atmosphere) scene.remove(atmosphere);
-        if(shield) scene.remove(shield);
-
-        // 星球主体
-        const geo = new THREE.SphereGeometry(8, 128, 128);
-        const mat = new THREE.MeshStandardMaterial({
-            color: config.color,
-            roughness: 0.8,
-            metalness: 0.2,
-            emissive: config.color,
-            emissiveIntensity: 0.1
-        });
-        planet = new THREE.Mesh(geo, mat);
-        scene.add(planet);
-
-        // 大气层
-        const atmGeo = new THREE.SphereGeometry(8.4, 64, 64);
-        const atmMat = new THREE.MeshPhongMaterial({
-            color: config.color,
-            transparent: true,
-            opacity: 0.15,
-            side: THREE.BackSide
-        });
-        atmosphere = new THREE.Mesh(atmGeo, atmMat);
-        scene.add(atmosphere);
-
-        // 护盾
-        const shdGeo = new THREE.SphereGeometry(9.5, 32, 32);
-        const shdMat = new THREE.MeshBasicMaterial({
-            color: config.shieldColor,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.1
-        });
-        shield = new THREE.Mesh(shdGeo, shdMat);
-        scene.add(shield);
-
-        state.currentPlanet = config;
-        state.hp = config.hp;
-        state.maxHp = config.hp;
-        state.pop = config.pop;
-        state.anger = 0;
-        
-        document.getElementById('p-name').innerText = config.name;
-        document.getElementById('p-name').style.color = `#${config.color.toString(16)}`;
-        updateHUD();
-    }
-
-    // --- 武器发射系统 ---
-    function onFire(e) {
-        if(e.clientX > window.innerWidth - 360) return;
-
-        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
-        const ray = new THREE.Raycaster();
-        ray.setFromCamera(mouse, camera);
-        
-        const w = state.currentWeapon;
-        
-        // 1. 投射物模式 (导弹, 陨石)
-        if(w.type === WEAPON_TYPES.PROJECTILE) {
-            const startPos = new THREE.Vector3((Math.random()-0.5)*50, 20, 30);
-            const targetPos = new THREE.Vector3();
-            
-            // 获取打击点
-            const hits = ray.intersectObject(planet);
-            if(hits.length > 0) {
-                targetPos.copy(hits[0].point);
-                spawnProjectile(w, startPos, targetPos);
-            }
-        } 
-        // 2. 射线模式 (激光, 冰冻)
-        else if(w.type === WEAPON_TYPES.BEAM) {
-            const hits = ray.intersectObject(planet);
-            if(hits.length > 0) {
-                executeBeam(w, hits[0].point);
-            }
-        }
-        // 3. 场效应模式 (黑洞)
-        else if(w.type === WEAPON_TYPES.FIELD) {
-            const hits = ray.intersectObject(planet);
-            if(hits.length > 0) {
-                executeField(w, hits[0].point);
-            }
-        }
-    }
-
-    function spawnProjectile(w, start, target) {
-        const geo = w.id === 'missile' ? new THREE.CylinderGeometry(0.1, 0.1, 1) : new THREE.SphereGeometry(1.5, 16, 16);
-        const mat = new THREE.MeshBasicMaterial({ color: w.color });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.copy(start);
-        mesh.lookAt(target);
-        if(w.id === 'missile') mesh.rotateX(Math.PI/2);
-        
-        scene.add(mesh);
-        projectiles.push({ mesh, target, weapon: w, life: 1.0 });
-    }
-
-    function executeBeam(w, target) {
-        const source = new THREE.Vector3(target.x*1.5, 40, target.z*1.5);
-        const points = [source, target];
-        const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const mat = new THREE.LineBasicMaterial({ color: w.color, linewidth: 3 });
-        const line = new THREE.Line(geo, mat);
-        scene.add(line);
-        beams.push({ mesh: line, life: 0.1 });
-        
-        handleImpact(target, w);
-    }
-
-    function executeField(w, pos) {
-        if(w.id === 'blackhole') {
-            const hole = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), new THREE.MeshBasicMaterial({color: 0x000000}));
-            hole.position.copy(pos);
-            scene.add(hole);
-            
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.1, 16, 100), new THREE.MeshBasicMaterial({color: w.color, transparent: true}));
-            ring.position.copy(pos);
-            ring.lookAt(camera.position);
-            scene.add(ring);
-            
-            const anim = () => {
-                ring.rotation.z += 0.2;
-                ring.scale.multiplyScalar(0.98);
-                if(ring.scale.x > 0.1) requestAnimationFrame(anim);
-                else { scene.remove(hole); scene.remove(ring); }
-            };
-            anim();
-            handleImpact(pos, w);
-        }
-    }
-
-    // --- 真实伤害与视觉反馈 ---
-    function handleImpact(pos, w) {
-        applyDamage(w.pwr);
-        
-        // 1. 地表形变 (视觉模拟)
-        deformSurface(pos, w);
-
-        // 2. 碎片产生 (根据武器类型有不同外观)
-        const fragCount = w.id === 'meteor' ? 40 : 15;
-        const fragColor = w.id === 'freeze' ? 0x88ffff : (w.id === 'missile' ? 0xff6600 : state.currentPlanet.color);
-        
-        for(let i=0; i<fragCount; i++) {
-            const size = Math.random() * 0.3;
-            const fragGeo = w.id === 'freeze' ? new THREE.IcosahedronGeometry(size, 0) : new THREE.BoxGeometry(size, size, size);
-            const fragMat = new THREE.MeshBasicMaterial({ color: fragColor, transparent: true });
-            const frag = new THREE.Mesh(fragGeo, fragMat);
-            
-            frag.position.copy(pos);
-            const vel = new THREE.Vector3((Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5);
-            if(w.id === 'blackhole') vel.multiplyScalar(-1); // 吸入效果
-            
-            scene.add(frag);
-            fragments.push({ mesh: frag, vel, life: 1.0, type: w.id });
-        }
-
-        // 3. 屏幕抖动
-        if(w.pwr > 100) {
-            document.body.classList.add('hit-shake');
-            setTimeout(() => document.body.classList.remove('hit-shake'), 200);
-        }
-    }
-
-    function deformSurface(pos, w) {
-        // 修改星球网格顶点位置 (简化实现)
-        const position = planet.geometry.attributes.position;
-        const v = new THREE.Vector3();
-        const distLimit = w.id === 'meteor' ? 5 : 2;
-        
-        for (let i = 0; i < position.count; i++) {
-            v.fromBufferAttribute(position, i);
-            const worldV = v.clone().applyMatrix4(planet.matrixWorld);
-            const dist = worldV.distanceTo(pos);
-            if(dist < distLimit) {
-                const force = (distLimit - dist) / distLimit;
-                // 陨石产生坑洞，黑洞产生塌陷
-                const depth = (w.id === 'meteor' || w.id === 'blackhole') ? -0.3 : -0.1;
-                v.multiplyScalar(1 + force * depth);
-                position.setXYZ(i, v.x, v.y, v.z);
-            }
-        }
-        position.needsUpdate = true;
-    }
-
-    // --- 行星自主反击系统 ---
-    function triggerPlanetCounter() {
-        const p = state.currentPlanet;
-        state.anger = 0;
-        
-        // 视觉提示
-        document.getElementById('screen-fx').style.boxShadow = `inset 0 0 100px ${p.shieldColor.toString(16)}`;
-        setTimeout(() => document.getElementById('screen-fx').style.boxShadow = 'none', 1000);
-
-        // 真实物理实体反击
-        const count = 5;
-        for(let i=0; i<count; i++) {
-            const startPos = planet.position.clone().add(new THREE.Vector3((Math.random()-0.5)*10, (Math.random()-0.5)*10, 0));
-            const targetPos = camera.position.clone().add(new THREE.Vector3((Math.random()-0.5)*20, (Math.random()-0.5)*20, -10));
-            
-            let geo, mat;
-            if(p.id === 'earth') {
-                geo = new THREE.CylinderGeometry(0.2, 0.2, 2);
-                mat = new THREE.MeshBasicMaterial({color: 0x00f2ff});
-            } else if(p.id === 'hell') {
-                geo = new THREE.SphereGeometry(1, 16, 16);
-                mat = new THREE.MeshBasicMaterial({color: 0xffaa00});
-            } else {
-                geo = new THREE.DodecahedronGeometry(0.8, 0);
-                mat = new THREE.MeshBasicMaterial({color: 0x888888});
-            }
-
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.copy(startPos);
-            mesh.lookAt(targetPos);
-            scene.add(mesh);
-            
-            counterObjects.push({ mesh, vel: targetPos.sub(startPos).normalize().multiplyScalar(0.5), life: 2.0 });
-        }
-    }
-
-    // --- 核心循环 ---
-    function animate() {
-        requestAnimationFrame(animate);
-        
-        if(planet) planet.rotation.y += 0.001;
-        if(shield) shield.rotation.y += 0.005;
-
-        // 处理弹药
-        for(let i=projectiles.length-1; i>=0; i--) {
-            const p = projectiles[i];
-            p.mesh.position.lerp(p.target, 0.1);
-            if(p.mesh.position.distanceTo(p.target) < 0.5) {
-                handleImpact(p.target, p.weapon);
-                scene.remove(p.mesh);
-                projectiles.splice(i, 1);
-            }
-        }
-
-        // 处理碎片
-        for(let i=fragments.length-1; i>=0; i--) {
-            const f = fragments[i];
-            f.mesh.position.add(f.vel);
-            f.life -= 0.02;
-            f.mesh.material.opacity = f.life;
-            if(f.life <= 0) {
-                scene.remove(f.mesh);
-                fragments.splice(i, 1);
-            }
-        }
-
-        // 处理反击物体
-        for(let i=counterObjects.length-1; i>=0; i--) {
-            const c = counterObjects[i];
-            c.mesh.position.add(c.vel);
-            c.life -= 0.01;
-            if(c.life <= 0) {
-                scene.remove(c.mesh);
-                counterObjects.splice(i, 1);
-            }
-        }
-
-        // 处理射线
-        for(let i=beams.length-1; i>=0; i--) {
-            const b = beams[i];
-            b.life -= 0.01;
-            if(b.life <= 0) {
-                scene.remove(b.mesh);
-                beams.splice(i, 1);
-            }
-        }
-
-        renderer.render(scene, camera);
-    }
-
-    // --- 辅助逻辑 ---
-    function applyDamage(dmg) {
-        state.hp -= dmg;
-        state.anger += dmg;
-        if(state.hp < 0) state.hp = 0;
-        if(state.anger > 500) triggerPlanetCounter();
-        updateHUD();
-    }
-
-    function updateHUD() {
-        const pct = (state.hp / state.maxHp) * 100;
-        document.getElementById('val-hp').innerText = Math.ceil(pct) + '%';
-        document.getElementById('val-pop').innerText = (state.pop * (pct/100)).toFixed(2) + ' B';
-    }
-
-    function setupUI() {
-        const grid = document.getElementById('weapon-grid');
-        WEAPONS.forEach(w => {
-            const el = document.createElement('div');
-            el.className = `weapon-item ${w.id === state.currentWeapon.id ? 'active' : ''}`;
-            el.innerHTML = `<div class="text-3xl">${w.icon}</div><div class="text-[9px] font-bold mt-1">${w.name}</div>`;
-            el.onclick = () => {
-                state.currentWeapon = w;
-                document.querySelectorAll('.weapon-item').forEach(x => x.classList.remove('active'));
-                el.classList.add('active');
-                document.getElementById('w-name').innerText = w.name;
-                document.getElementById('w-desc').innerText = w.desc;
-            };
-            grid.appendChild(el);
-        });
-        document.querySelector('.weapon-item').click();
-    }
-
-    function onResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    window.onload = init;
-</script>
+    <!-- HUD Elements -->
+    <div id="hud">
+      <div id="weapon-panel">
+        <h3>武器选择 / Weapon Selection</h3>
+        <div id="weapon-grid">
+          <button class="weapon-btn" data-weapon="rocket">火箭导弹</button>
+          <button class="weapon-btn" data-weapon="guided-missile">可控导弹</button>
+          <button class="weapon-btn" data-weapon="laser">普通激光</button>
+          <button class="weapon-btn" data-weapon="burst-laser">一次性激光</button>
+          <button class="weapon-btn" data-weapon="super-laser">超级激光</button>
+          <button class="weapon-btn" data-weapon="asteroid">陨石</button>
+          <button class="weapon-btn" data-weapon="bomb">炸弹</button>
+          <button class="weapon-btn" data-weapon="black-hole">黑洞</button>
+          <button class="weapon-btn" data-weapon="railgun">电磁炮</button>
+          <button class="weapon-btn" data-weapon="freeze-ray">冰冻射线</button>
+        </div>
+      </div>
+      
+      <div id="planet-info">
+        <h3>行星状态 / Planet Status</h3>
+        <div id="planet-stats">
+          <div class="stat-item">
+            <span>人口: </span>
+            <span id="population">7.8B</span>
+          </div>
+          <div class="stat-item">
+            <span>护盾: </span>
+            <div id="shield-bar">
+              <div id="shield-fill"></div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span>完整度: </span>
+            <span id="integrity">100%</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="game-mode">
+        <h3>游戏模式 / Game Mode</h3>
+        <select id="mode-select">
+          <option value="sandbox">沙盒模式</option>
+          <option value="challenge">挑战模式</option>
+          <option value="story">剧情模式</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Planet Selection -->
+    <div id="planet-selector">
+      <button class="planet-btn active" data-planet="earth">地球</button>
+      <button class="planet-btn" data-planet="mars">火星</button>
+      <button class="planet-btn" data-planet="venus">金星</button>
+      <button class="planet-btn" data-planet="jupiter">木星</button>
+    </div>
+    
+    <!-- Warning System -->
+    <div id="warning-system"></div>
+  </div>
+  
+  <script type="module" src="main.js"></script>
 </body>
 </html>
